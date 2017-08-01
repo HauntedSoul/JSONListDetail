@@ -9,87 +9,107 @@
 import UIKit
 
 class MainTableViewController: UITableViewController {
-
+    @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
+    
+    var users:[[String:Any]] = []
+    var selectedUser:UserModel? = nil
+    
+    var currentDataTask:URLSessionDataTask?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Uncomment the following line to preserve selection between presentations
-         self.clearsSelectionOnViewWillAppear = false
-
-        // Get the data from the url
-        // Reload the table with the received data
+        
+        self.clearsSelectionOnViewWillAppear = true
+        
+        activityIndicator.startAnimating()
+        
+        let url = URL(string: "https://jsonplaceholder.typicode.com/users")
+        URLSession.shared.dataTask(with:url!, completionHandler: {(data, response, error) in
+            guard let data = data, error == nil else { return }
+            
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as! [[String: Any]]
+//                print(json)
+                // Save it up there and reload data
+                self.users = json
+                DispatchQueue.main.async {
+                    self.tableView.reloadData()
+                    self.activityIndicator.stopAnimating()
+                }
+            } catch let error as NSError {
+                print(error)
+            }
+        }).resume()
+        
+        tableView.tableHeaderView = UIView()
+        tableView.tableFooterView = UIView()
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
-
+    
     // MARK: - Table view data source
-
+    
     override func numberOfSections(in tableView: UITableView) -> Int {
-        // #warning Incomplete implementation, return the number of sections
-        return 0
+        return 1
     }
-
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
-        return 0
+        return users.count
     }
-
-    /*
+    
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-
-        // Configure the cell...
-
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
+        
+        let imageView = cell.viewWithTag(1) as! UIImageView
+        imageView.image = nil
+        let nameLabel = cell.viewWithTag(2) as! UILabel
+        nameLabel.text = ""
+        let emailLabel = cell.viewWithTag(3) as! UILabel
+        emailLabel.text = ""
+        
+        let user = users[indexPath.row];
+        let userName = user["username"] as! String
+        let url = URL(string: "https://via.placeholder.com/200x200?text=\(userName)")
+        imageView.downloadedFrom(url: url!, contentMode: .scaleAspectFill)
+        
+        nameLabel.text = user["name"] as? String
+        emailLabel.text = user["email"] as? String
+        
         return cell
     }
-    */
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        currentDataTask?.cancel()
+        
+        activityIndicator.startAnimating()
+        selectedUser = UserModel(data: users[indexPath.row])
 
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+        let userId = users[indexPath.row]["id"] as! Int
+        let url = URL(string: "https://jsonplaceholder.typicode.com/posts?userId=\(userId)")
+        currentDataTask = URLSession.shared.dataTask(with:url!, completionHandler: {(data, response, error) in
+            guard let data = data, error == nil else { return }
+            
+            do {
+                let json = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as! [[String:Any]]
+                self.selectedUser?.comments = json
+                DispatchQueue.main.async {
+                    self.performSegue(withIdentifier: "DetailSegue", sender: self)
+                }
+            } catch let error as NSError {
+                print(error)
+            }
+        })
+        currentDataTask!.resume()
     }
-    */
-
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
-    }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
+    
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
+        guard let detailView = segue.destination as? DetailViewController else { return }
+        detailView.currentUser = selectedUser
+        activityIndicator.stopAnimating()
     }
-    */
-
+    
 }
